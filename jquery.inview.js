@@ -6,16 +6,29 @@
 (function($) {
     'use strict';
 
+    function isFullscreen() {
+        return (document.fullScreen || document.mozFullScreen || document.webkitIsFullScreen);
+    }
+
+    function getFullscreenElement() {
+        var elem = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement;
+        return $(elem).children().get(0);
+    }
+
     function getScrollTop() {
-        return window.pageYOffset ||
-            document.documentElement.scrollTop ||
-            document.body.scrollTop;
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+        if( isFullscreen() ) {
+            var $fsElem = $(getFullscreenElement());
+            scrollTop = scrollTop - $fsElem.offset().top;
+        }
+        return scrollTop;
     }
 
     function getViewportHeight() {
         var height = window.innerHeight; // Safari, Opera
         // if this is correct then return it. iPad has compat Mode, so will
         // go into check clientHeight (which has the wrong value).
+
         if (height) {
             return height;
         }
@@ -31,13 +44,22 @@
     }
 
     function offsetTop(debug) {
-        // Manually calculate offset rather than using jQuery's offset
-        // This works-around iOS < 4 on iPad giving incorrect value
-        // cf http://bugs.jquery.com/ticket/6446#comment:9
         var curtop = 0;
-        for (var obj = debug; obj; obj = obj.offsetParent) {
-            curtop += obj.offsetTop;
+
+        if( isFullscreen() ) {
+            // offset for fullscreen;
+            var $fsElem = $(getFullscreenElement());
+            curtop = $(debug).offset().top - $fsElem.offset().top;
+        } else {
+            // offset for regular window
+            // Manually calculate offset rather than using jQuery's offset
+            // This works-around iOS < 4 on iPad giving incorrect value
+            // cf http://bugs.jquery.com/ticket/6446#comment:9
+            for (var obj = debug; obj; obj = obj.offsetParent) {
+                curtop += obj.offsetTop;
+            }
         }
+
         return curtop;
     }
 
@@ -52,6 +74,7 @@
                 elems.push(this.handle.elem);
             }
         });
+
 
         $(elems).each(function() {
             var $el = $(this),
@@ -104,6 +127,5 @@
     // ready.inview kicks the event to pick up any elements already in view.
     // note however, this only works if the plugin is included after the elements are bound to 'inview'
     var runner = createFunctionLimitedToOneExecutionPerDelay(checkInView, 100);
-    $(window).on('checkInView.inview click.inview ready.inview scroll.inview resize.inview', runner);
-
+    $(window).on('checkInView.inview click.inview ready.inview scroll.inview resize.inview touchmove.inview', runner);
 })(jQuery);
